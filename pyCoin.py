@@ -3,12 +3,15 @@ import threading
 import base64
 import pickle
 import os
+import pymysql
 
 from tabulate import tabulate
 from datetime import datetime
 from time import sleep
 
 requests.packages.urllib3.disable_warnings()
+
+
 
 class Thread(threading.Thread):
     def __init__(self, url, cryptos, currencies, key):
@@ -23,6 +26,25 @@ class Crypto(object):
         self.symbol = data["symbol"].upper()
         self.supply = None
         self.currencies = None
+
+    def save_prices(self, symbol, ful_name, quote_currency, price, timestamp) :
+        db = pymysql.connect(host='localhost',
+                             user='testuser',
+                             password='test123',
+                             database='TESTDB')
+         
+        cursor = db.cursor()
+        
+        sql = """INSERT INTO SYMBOL_PRICES(currency,full_name, quote_currency, price)
+                 VALUES (currency, full_name, quote_currency, price, timestamp)"""
+        try:
+           print(symbol, full_name, quote_currency, price, timestamp)
+           cursor.execute(sql)
+           db.commit()
+        except:
+           db.rollback()
+        
+        db.close()
 
     def set_ticker(self, ticker: dict, currencies: str) -> None:
         # TODO: Add price change 7d for custom cryptos
@@ -231,6 +253,9 @@ def print_selection_multitab(selection, sort_value):
             percent_24h = color_percent(currs[currency]['percent_change_24h'])
             percent_7d = color_percent(currs[currency]['percent_change_7d'])
             circulating = 0
+
+            item.save_prices(item.symbol, item.name, currency, price, datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+            
             if item.supply:
                 circulating = item.supply._circulating
             data = [bold(item.rank), item.symbol, item.name,
